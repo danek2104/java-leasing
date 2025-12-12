@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" th:replace="~{layout :: layout(~{::section})}">
+<body>
+<section>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 mb-0">Договоры</h2>
+            <p class="text-muted small">Активные и архивные договоры лизинга</p>
+        </div>
+        <a sec:authorize="hasAnyRole('ADMIN', 'MANAGER')" href="/contracts/new" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Новый Договор
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-modern table-hover mb-0 datatable">
+                    <thead>
+                    <tr>
+                        <th>Клиент</th>
+                        <th>Срок</th>
+                        <th>Сумма</th>
+                        <th>Статус</th>
+                        <th class="text-end">Действия</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="contract : ${contracts}">
+                        <td>
+                            <div class="fw-medium" th:text="${contract.client.fullName}">Имя Клиента</div>
+                            <div class="small text-muted" th:text="${contract.client.contactInfo}">Контакты</div>
+                        </td>
+                        <td>
+                            <span th:text="${#temporals.format(contract.startDate, 'dd-MM-yyyy')}">Дата начала</span> <i class="bi bi-arrow-right-short text-muted"></i> <span th:text="${#temporals.format(contract.endDate, 'dd-MM-yyyy')}">Дата окончания</span>
+                        </td>
+                        <td th:text="${#numbers.formatCurrency(contract.amount)}">0.00 ₽</td>
+                        <td>
+                            <span class="badge badge-status"
+                                  th:classappend="${contract.status == T(com.leasing.system.model.ContractStatus).ACTIVE ? 'text-bg-success' : 
+                                                    (contract.status == T(com.leasing.system.model.ContractStatus).CLOSED ? 'text-bg-secondary' : 'text-bg-danger')}" 
+                                  th:text="${contract.status == T(com.leasing.system.model.ContractStatus).ACTIVE ? 'Активен' : 
+                                            (contract.status == T(com.leasing.system.model.ContractStatus).CLOSED ? 'Закрыт' : 
+                                            (contract.status == T(com.leasing.system.model.ContractStatus).TERMINATED ? 'Расторгнут' : 'Неизвестно'))}">Статус</span>
+                        </td>
+                        <td class="text-end">
+                            <a th:href="@{/payments/contract/{id}(id=${contract.id})}" class="btn btn-sm btn-outline-info me-1" title="Платежи">
+                                <i class="bi bi-cash-coin"></i>
+                            </a>
+                            <a sec:authorize="hasAnyRole('ADMIN', 'MANAGER')" th:href="@{/contracts/edit/{id}(id=${contract.id})}" class="btn btn-sm btn-outline-primary" title="Редактировать">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+</body>
+</html>

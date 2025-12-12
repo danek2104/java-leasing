@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" th:replace="~{layout :: layout(~{::section})}">
+<body>
+<section>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 mb-0">Транспортные Средства</h2>
+            <p class="text-muted small">Управляйте своим автопарком</p>
+        </div>
+        <a sec:authorize="hasAnyRole('ADMIN', 'MANAGER')" href="/vehicles/new" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Добавить Транспорт
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-modern table-hover mb-0 datatable">
+                    <thead>
+                    <tr>
+                        <th>Марка</th>
+                        <th>Модель</th>
+                        <th>Стоимость (RUB)</th>
+                        <th>Статус</th>
+                        <th sec:authorize="hasAnyRole('ADMIN', 'MANAGER')" class="text-end">Действия</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="vehicle : ${vehicles}">
+                        <td class="fw-medium" th:text="${vehicle.brand}">Toyota</td>
+                        <td th:text="${vehicle.model}">Camry</td>
+                        <td th:text="${#numbers.formatCurrency(vehicle.cost)}">$25,000.00</td>
+                        <td>
+                            <span class="badge badge-status" 
+                                  th:classappend="${vehicle.status == T(com.leasing.system.model.VehicleStatus).AVAILABLE ? 'text-bg-success' : 
+                                                    (vehicle.status == T(com.leasing.system.model.VehicleStatus).LEASED ? 'text-bg-warning' : 'text-bg-secondary')}"
+                                  th:text="${vehicle.status == T(com.leasing.system.model.VehicleStatus).AVAILABLE ? 'Доступен' : 
+                                            (vehicle.status == T(com.leasing.system.model.VehicleStatus).LEASED ? 'В лизинге' : 
+                                            (vehicle.status == T(com.leasing.system.model.VehicleStatus).MAINTENANCE ? 'На обслуживании' : 'Неизвестно'))}">Доступен</span>
+                        </td>
+                        <td sec:authorize="hasAnyRole('ADMIN', 'MANAGER')" class="text-end">
+                            <a th:href="@{/vehicles/edit/{id}(id=${vehicle.id})}" class="btn btn-sm btn-outline-primary me-1" title="Редактировать">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a th:href="@{/vehicles/delete/{id}(id=${vehicle.id})}" class="btn btn-sm btn-outline-danger" 
+                               onclick="return confirm('Вы уверены, что хотите удалить это транспортное средство?')" title="Удалить">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+</body>
+</html>

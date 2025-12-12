@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section})}">
+<body>
+<section>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 mb-0">Заявки</h2>
+            <p class="text-muted small">Заявки на лизинг транспортных средств</p>
+        </div>
+        <a sec:authorize="hasRole('CLIENT')" href="/requests/new" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Новая Заявка
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-modern table-hover mb-0 datatable">
+                    <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Клиент</th>
+                        <th>Транспорт</th>
+                        <th>Статус</th>
+                        <th class="text-end" sec:authorize="hasAnyRole('MANAGER', 'ADMIN')">Действия</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="req : ${requests}">
+                        <td th:text="${#temporals.format(req.requestDate, 'dd-MM-yyyy')}">2023-01-01</td>
+                        <td th:text="${req.client.fullName}">Клиент</td>
+                        <td>
+                            <div class="fw-medium" th:text="${req.vehicle.brand + ' ' + req.vehicle.model}">Транспорт</div>
+                        </td>
+                        <td>
+                            <span class="badge badge-status"
+                                  th:classappend="${req.status == T(com.leasing.system.model.RequestStatus).PENDING ? 'text-bg-warning' : 
+                                                    (req.status == T(com.leasing.system.model.RequestStatus).APPROVED ? 'text-bg-success' : 'text-bg-danger')}"
+                                  th:text="${req.status == T(com.leasing.system.model.RequestStatus).PENDING ? 'Ожидает' : 
+                                            (req.status == T(com.leasing.system.model.RequestStatus).APPROVED ? 'Одобрена' : 
+                                            (req.status == T(com.leasing.system.model.RequestStatus).REJECTED ? 'Отклонена' : 'Неизвестно'))}">Статус</span>
+                        </td>
+                        <td class="text-end" sec:authorize="hasAnyRole('MANAGER', 'ADMIN')">
+                            <div class="btn-group" role="group" th:if="${req.status == T(com.leasing.system.model.RequestStatus).PENDING}">
+                                <form th:action="@{/requests/{id}/status(id=${req.id})}" method="post" style="display:inline;">
+                                    <input type="hidden" name="status" value="APPROVED">
+                                    <button type="submit" class="btn btn-sm btn-outline-success" title="Одобрить">
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                </form>
+                                <form th:action="@{/requests/{id}/status(id=${req.id})}" method="post" style="display:inline; margin-left: 5px;">
+                                    <input type="hidden" name="status" value="REJECTED">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Отклонить">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+</body>
+</html>

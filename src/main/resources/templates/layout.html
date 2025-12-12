@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" 
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:fragment="layout(content)">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система Лизинга</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <!-- Simple DataTables CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/simple-datatables@latest/dist/style.css" rel="stylesheet" type="text/css">
+    <!-- Custom CSS -->
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body>
+
+<div class="wrapper">
+    <!-- Sidebar -->
+    <nav id="sidebar">
+        <div class="sidebar-header">
+            <a href="/" class="sidebar-brand">
+                <i class="bi bi-car-front-fill"></i>
+                LeasePro
+            </a>
+        </div>
+
+        <ul class="list-unstyled components">
+            <li>
+                <a href="/dashboard" th:classappend="${requestURI == '/dashboard' ? 'active' : ''}">
+                    <i class="bi bi-speedometer2"></i> Панель
+                </a>
+            </li>
+            <li sec:authorize="hasRole('ADMIN')">
+                <a href="/users" th:classappend="${requestURI != null && requestURI.startsWith('/users') ? 'active' : ''}">
+                    <i class="bi bi-person-gear"></i> Пользователи
+                </a>
+            </li>
+            <li sec:authorize="hasAnyRole('ADMIN', 'MANAGER')">
+                <a href="/clients" th:classappend="${requestURI != null && requestURI.startsWith('/clients') ? 'active' : ''}">
+                    <i class="bi bi-people"></i> Клиенты
+                </a>
+            </li>
+            <li>
+                <a href="/vehicles" th:classappend="${requestURI != null && requestURI.startsWith('/vehicles') ? 'active' : ''}">
+                    <i class="bi bi-car-front"></i> Транспорт
+                </a>
+            </li>
+            <li>
+                <a href="/contracts" th:classappend="${requestURI != null && requestURI.startsWith('/contracts') ? 'active' : ''}">
+                    <i class="bi bi-file-earmark-text"></i> Договоры
+                </a>
+            </li>
+            <li>
+                <a href="/requests" th:classappend="${requestURI != null && requestURI.startsWith('/requests') ? 'active' : ''}">
+                    <i class="bi bi-inbox"></i> Заявки
+                </a>
+            </li>
+        </ul>
+
+        <div class="user-profile">
+            <div class="d-flex align-items-center gap-2 text-light mb-2">
+                <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                    <i class="bi bi-person-fill"></i>
+                </div>
+                <div class="small">
+                    <div class="fw-bold" sec:authentication="name">Пользователь</div>
+                    <div class="text-muted" style="font-size: 0.75rem;" 
+                         th:text="${#authorization.expression('hasRole(''ADMIN'')') ? 'Администратор' : 
+                                   (#authorization.expression('hasRole(''MANAGER'')') ? 'Менеджер' : 
+                                   (#authorization.expression('hasRole(''CLIENT'')') ? 'Клиент' : 'Роль'))}">Роль</div>
+                </div>
+            </div>
+            <a href="/logout" class="btn btn-outline-secondary btn-sm w-100 mt-2">
+                <i class="bi bi-box-arrow-right"></i> Выход
+            </a>
+        </div>
+    </nav>
+
+    <!-- Page Content -->
+    <div id="content">
+        <!-- Top Navbar -->
+        <nav class="top-navbar">
+            <button type="button" id="sidebarCollapse" class="btn btn-light d-md-none">
+                <i class="bi bi-list"></i>
+            </button>
+            <div class="fw-semibold fs-5 text-secondary" th:text="${pageTitle} ?: 'Система Лизинга'">Панель управления</div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <div th:replace="${content}"></div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/simple-datatables@latest" type="text/javascript"></script>
+<script>
+    // Initialize Simple DataTables for any table with class 'datatable'
+    document.addEventListener('DOMContentLoaded', () => {
+        const tables = document.querySelectorAll('.datatable');
+        tables.forEach(table => {
+            new simpleDatatables.DataTable(table, {
+                labels: {
+                    placeholder: "Поиск...",
+                    perPage: "записей на страницу",
+                    noRows: "Записей не найдено",
+                    info: "Показано с {start} по {end} из {rows} записей",
+                }
+            });
+        });
+    });
+</script>
+</body>
+</html>
