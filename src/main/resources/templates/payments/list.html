@@ -28,9 +28,21 @@
                 <table class="table table-hover align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th>ID</th>
-                            <th>Дата Платежа</th>
-                            <th>Сумма</th>
+                            <th>
+                                <a th:href="@{/payments/contract/{cid}(cid=${contract.id}, page=${page}, sortField='id', sortDir=${reverseSortDir})}" class="text-decoration-none text-dark">
+                                    ID <i th:if="${sortField == 'id'}" th:class="${sortDir == 'asc' ? 'bi bi-sort-numeric-down' : 'bi bi-sort-numeric-up'}"></i>
+                                </a>
+                            </th>
+                            <th>
+                                <a th:href="@{/payments/contract/{cid}(cid=${contract.id}, page=${page}, sortField='paymentDate', sortDir=${reverseSortDir})}" class="text-decoration-none text-dark">
+                                    Дата Платежа <i th:if="${sortField == 'paymentDate'}" th:class="${sortDir == 'asc' ? 'bi bi-sort-numeric-down' : 'bi bi-sort-numeric-up'}"></i>
+                                </a>
+                            </th>
+                            <th>
+                                <a th:href="@{/payments/contract/{cid}(cid=${contract.id}, page=${page}, sortField='amount', sortDir=${reverseSortDir})}" class="text-decoration-none text-dark">
+                                    Сумма <i th:if="${sortField == 'amount'}" th:class="${sortDir == 'asc' ? 'bi bi-sort-numeric-down' : 'bi bi-sort-numeric-up'}"></i>
+                                </a>
+                            </th>
                             <th>Статус</th>
                             <th>Действия</th>
                         </tr>
@@ -62,6 +74,21 @@
                     </tbody>
                 </table>
             </div>
+            
+            <!-- Pagination -->
+            <nav aria-label="Page navigation" class="mt-4" th:if="${totalPages > 1}">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item" th:classappend="${currentPage == 0} ? 'disabled'">
+                        <a class="page-link" th:href="@{/payments/contract/{cid}(cid=${contract.id}, page=${currentPage - 1}, sortField=${sortField}, sortDir=${sortDir})}" tabindex="-1">Предыдущая</a>
+                    </li>
+                    <li class="page-item" th:each="i : ${#numbers.sequence(0, totalPages - 1)}" th:classappend="${currentPage == i} ? 'active'">
+                        <a class="page-link" th:href="@{/payments/contract/{cid}(cid=${contract.id}, page=${i}, sortField=${sortField}, sortDir=${sortDir})}" th:text="${i + 1}">1</a>
+                    </li>
+                    <li class="page-item" th:classappend="${currentPage == totalPages - 1} ? 'disabled'">
+                        <a class="page-link" th:href="@{/payments/contract/{cid}(cid=${contract.id}, page=${currentPage + 1}, sortField=${sortField}, sortDir=${sortDir})}">Следующая</a>
+                    </li>
+                </ul>
+            </nav>
         </div>
     </div>
 </section>

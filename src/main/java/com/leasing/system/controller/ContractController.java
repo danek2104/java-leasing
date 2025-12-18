@@ -36,21 +36,63 @@ public class ContractController {
     }
 
     @GetMapping
-    public String listContracts(Model model) {
+    public String listContracts(@RequestParam(required = false) String search,
+                                @RequestParam(required = false) String clientName,
+                                @RequestParam(required = false) String brand,
+                                @RequestParam(required = false) String modelName,
+                                @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
+                                @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate endDate,
+                                @RequestParam(required = false) java.math.BigDecimal minAmount,
+                                @RequestParam(required = false) java.math.BigDecimal maxAmount,
+                                @RequestParam(required = false) com.leasing.system.model.ContractStatus status,
+                                @RequestParam(defaultValue = "0") int page,
+                                @RequestParam(defaultValue = "10") int size,
+                                @RequestParam(defaultValue = "id") String sortField,
+                                @RequestParam(defaultValue = "asc") String sortDir,
+                                Model model) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         User user = userService.findByUsername(auth.getName());
 
+        model.addAttribute("sortField", sortField);
+        model.addAttribute("sortDir", sortDir);
+        model.addAttribute("reverseSortDir", sortDir.equals("asc") ? "desc" : "asc");
+        model.addAttribute("page", page);
+        model.addAttribute("size", size);
+        
+        org.springframework.data.domain.Page<Contract> contractPage;
+
         if (user.getRole() == Role.CLIENT) {
-            // Find client by user
+            // Найти клиента по пользователю
              var client = clientService.findByUserId(user.getId());
              if (client != null) {
-                 model.addAttribute("contracts", contractService.findByClientId(client.getId()));
+                 contractPage = contractService.findByClientId(client.getId(), page, size, sortField, sortDir);
              } else {
-                 model.addAttribute("contracts", java.util.List.of());
+                 contractPage = org.springframework.data.domain.Page.empty();
              }
         } else {
-            model.addAttribute("contracts", contractService.findAll());
+            if (search != null && !search.isEmpty()) {
+                contractPage = contractService.search(search, page, size, sortField, sortDir);
+                model.addAttribute("search", search);
+            } else if (clientName != null || brand != null || modelName != null || startDate != null || endDate != null || minAmount != null || maxAmount != null || status != null) {
+                contractPage = contractService.filter(clientName, brand, modelName, startDate, endDate, minAmount, maxAmount, status, page, size, sortField, sortDir);
+                model.addAttribute("clientName", clientName);
+                model.addAttribute("brand", brand);
+                model.addAttribute("modelName", modelName);
+                model.addAttribute("startDate", startDate);
+                model.addAttribute("endDate", endDate);
+                model.addAttribute("minAmount", minAmount);
+                model.addAttribute("maxAmount", maxAmount);
+                model.addAttribute("status", status);
+            } else {
+                contractPage = contractService.findAll(page, size, sortField, sortDir);
+            }
         }
+        
+        model.addAttribute("contracts", contractPage.getContent());
+        model.addAttribute("currentPage", contractPage.getNumber());
+        model.addAttribute("totalPages", contractPage.getTotalPages());
+        model.addAttribute("totalItems", contractPage.getTotalElements());
+        
         return "contracts/list";
     }
 
@@ -66,7 +108,7 @@ public class ContractController {
     public String saveContract(@jakarta.validation.Valid @ModelAttribute Contract contractForm, org.springframework.validation.BindingResult bindingResult, Model model) {
         System.out.println("Processing saveContract request. ID: " + contractForm.getId());
 
-        // Date Validation
+        // Проверка даты
         if (contractForm.getStartDate() != null && contractForm.getEndDate() != null) {
             if (!contractForm.getEndDate().isAfter(contractForm.getStartDate())) {
                 bindingResult.rejectValue("endDate", "error.contract", "Дата окончания должна быть позже даты начала");
@@ -76,12 +118,12 @@ public class ContractController {
         if (bindingResult.hasErrors()) {
             System.out.println("Validation errors found: " + bindingResult.getAllErrors());
             model.addAttribute("clients", clientService.findAll());
-            // In case of error, we should ideally recreate the correct vehicle list context.
-            // For simplicity, we just show all or try to reconstruct. 
-            // Better: show AVAILABLE + the one selected in form.
+            // В случае ошибки нам в идеале следует воссоздать правильный контекст списка автомобилей.
+            // Для простоты мы просто показываем все или пытаемся восстановить. 
+            // Лучше: показать ДОСТУПНЫЕ + тот, который выбран в форме.
             var available = vehicleService.findByStatus(com.leasing.system.model.VehicleStatus.AVAILABLE);
-            // If user selected something not available (e.g. by hacking form), we might not see it in list, but that's fine.
-            // If editing, we need to ensure current one is there.
+            // Если пользователь выбрал что-то недоступное (например, взломав форму), мы можем не увидеть это в списке, но это нормально.
+            // При редактировании нам нужно убедиться, что текущий автомобиль присутствует.
             if (contractForm.getVehicle() != null && contractForm.getVehicle().getId() != null) {
                  vehicleService.findById(contractForm.getVehicle().getId()).ifPresent(v -> {
                      if (!available.contains(v)) available.add(v);
@@ -91,12 +133,12 @@ public class ContractController {
             return "contracts/form";
         }
         
-        // Validation: Check if selected vehicle is AVAILABLE (unless it's the same one being edited)
+        // Валидация: Проверить, ДОСТУПЕН ли выбранный автомобиль (если это не тот же самый, который редактируется)
         Vehicle selectedVehicle = vehicleService.findById(contractForm.getVehicle().getId()).orElse(null);
         if (selectedVehicle == null) {
              bindingResult.rejectValue("vehicle", "error.contract", "Автомобиль не найден");
              model.addAttribute("clients", clientService.findAll());
-             model.addAttribute("vehicles", vehicleService.findAll()); // Fallback
+             model.addAttribute("vehicles", vehicleService.findAll()); // Резервный вариант
              return "contracts/form";
         }
         
@@ -111,57 +153,57 @@ public class ContractController {
         if (!isSameVehicle && selectedVehicle.getStatus() != com.leasing.system.model.VehicleStatus.AVAILABLE) {
              bindingResult.rejectValue("vehicle", "error.contract", "Выбранный автомобиль недоступен для аренды");
              model.addAttribute("clients", clientService.findAll());
-             // Re-populate correct list
+             // Заново заполнить правильный список
              var list = vehicleService.findByStatus(com.leasing.system.model.VehicleStatus.AVAILABLE);
-             if (isSameVehicle) list.add(selectedVehicle); // won't happen here but logic consistency
+             if (isSameVehicle) list.add(selectedVehicle); // здесь этого не произойдет, но логическая согласованность
              model.addAttribute("vehicles", list);
              return "contracts/form";
         }
 
         if (contractForm.getId() != null) {
-            // EDIT MODE
+            // РЕЖИМ РЕДАКТИРОВАНИЯ
             Contract existingContract = contractService.findById(contractForm.getId())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid contract Id:" + contractForm.getId()));
 
-            // 1. Update simple fields
+            // 1. Обновить простые поля
             existingContract.setStartDate(contractForm.getStartDate());
             existingContract.setEndDate(contractForm.getEndDate());
             existingContract.setAmount(contractForm.getAmount());
 
-            // 2. Handle Vehicle Change
-            // If vehicle changed, old vehicle should become AVAILABLE
+            // 2. Обработка изменения автомобиля
+            // Если автомобиль изменился, старый автомобиль должен стать ДОСТУПНЫМ
             if (!existingContract.getVehicle().getId().equals(contractForm.getVehicle().getId())) {
                  Vehicle oldVehicle = existingContract.getVehicle();
                  oldVehicle.setStatus(com.leasing.system.model.VehicleStatus.AVAILABLE);
                  vehicleService.save(oldVehicle);
                  
-                 // Fetch new vehicle
+                 // Получить новый автомобиль
                  Vehicle newVehicle = vehicleService.findById(contractForm.getVehicle().getId())
                          .orElseThrow(() -> new IllegalArgumentException("Invalid vehicle Id"));
                  existingContract.setVehicle(newVehicle);
             }
             
-            // 3. Handle Status Change Logic
+            // 3. Логика обработки изменения статуса
             System.out.println("Updating contract status from " + existingContract.getStatus() + " to " + contractForm.getStatus());
             existingContract.setStatus(contractForm.getStatus());
             
-            // Re-fetch vehicle to be absolutely sure we have the latest state and attached entity
+            // Повторно получить автомобиль, чтобы быть абсолютно уверенными, что у нас есть последнее состояние и прикрепленная сущность
             Vehicle currentVehicle = vehicleService.findById(existingContract.getVehicle().getId()).orElseThrow();
             System.out.println("Current vehicle status before update: " + currentVehicle.getStatus());
             
             if (existingContract.getStatus() == com.leasing.system.model.ContractStatus.ACTIVE) {
                 currentVehicle.setStatus(com.leasing.system.model.VehicleStatus.LEASED);
             } else {
-                // CLOSED or TERMINATED
+                // ЗАКРЫТ или РАСТОРГНУТ
                 currentVehicle.setStatus(com.leasing.system.model.VehicleStatus.AVAILABLE);
             }
             
             System.out.println("Setting vehicle status to: " + currentVehicle.getStatus());
             vehicleService.save(currentVehicle);
             
-            // 4. Update Client (if changed)
+            // 4. Обновить клиента (если изменился)
             if (!existingContract.getClient().getId().equals(contractForm.getClient().getId())) {
-                 // Fetch real client entity by ID
+                 // Получить реальную сущность клиента по ID
                  Client newClient = clientService.findById(contractForm.getClient().getId())
                          .orElseThrow(() -> new IllegalArgumentException("Invalid client Id"));
                  existingContract.setClient(newClient);
@@ -170,8 +212,8 @@ public class ContractController {
             contractService.save(existingContract);
 
         } else {
-            // CREATE MODE
-            // Need to fetch real objects to ensure status sync works
+            // РЕЖИМ СОЗДАНИЯ
+            // Нужно получить реальные объекты, чтобы синхронизация статусов работала
             if (contractForm.getVehicle() != null && contractForm.getVehicle().getId() != null) {
                 Vehicle v = vehicleService.findById(contractForm.getVehicle().getId()).orElse(null);
                 if (v != null) {
@@ -199,8 +241,8 @@ public class ContractController {
         
         java.util.List<Vehicle> vehicles = vehicleService.findByStatus(com.leasing.system.model.VehicleStatus.AVAILABLE);
         Vehicle current = contract.getVehicle();
-        // Check if current is already in list (equals uses ID usually, but default equals might be object ref)
-        // Better check by ID
+        // Проверить, есть ли текущий уже в списке (equals обычно использует ID, но по умолчанию может быть ссылка на объект)
+        // Лучше проверить по ID
         boolean exists = vehicles.stream().anyMatch(v -> v.getId().equals(current.getId()));
         if (!exists) {
             vehicles.add(current);
@@ -210,5 +252,12 @@ public class ContractController {
         
         model.addAttribute("vehicles", vehicles);
         return "contracts/form";
+    }
+
+    @PostMapping("/delete/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public String deleteContract(@PathVariable Long id) {
+        contractService.deleteById(id);
+        return "redirect:/contracts";
     }
 }

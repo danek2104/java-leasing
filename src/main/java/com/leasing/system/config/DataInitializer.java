@@ -34,7 +34,7 @@ public class DataInitializer {
             RequestRepository requestRepository,
             PasswordEncoder passwordEncoder) {
         return args -> {
-            // 1. Users
+            // 1. Пользователи
             if (userRepository.findByUsername("admin").isEmpty()) {
                 User admin = new User();
                 admin.setUsername("admin");
@@ -65,12 +65,12 @@ public class DataInitializer {
                 clientProfile.setUser(userClient);
                 clientProfile = clientRepository.save(clientProfile);
             } else {
-                 // Fetch existing client profile if user exists (for re-runs if ddl-auto is update)
+                 // Получить существующий профиль клиента, если пользователь существует (для повторных запусков, если ddl-auto обновлен)
                  User u = userRepository.findByUsername("client").get();
                  clientProfile = clientRepository.findByUserId(u.getId()).orElse(null);
             }
 
-            // 2. Vehicles
+            // 2. Автомобили
             if (vehicleRepository.count() == 0) {
                 Vehicle v1 = new Vehicle();
                 v1.setBrand("Toyota");
@@ -93,9 +93,9 @@ public class DataInitializer {
                 v3.setStatus(VehicleStatus.AVAILABLE);
                 vehicleRepository.save(v3);
                 
-                // 3. Contracts & Requests (Linked to client and vehicles)
+                // 3. Договоры и Заявки (Связанные с клиентом и автомобилями)
                 if (clientProfile != null) {
-                    // Contract for BMW X5
+                    // Договор на BMW X5
                     Contract c1 = new Contract();
                     c1.setClient(clientProfile);
                     c1.setVehicle(v2);
@@ -105,7 +105,7 @@ public class DataInitializer {
                     c1.setStatus(ContractStatus.ACTIVE);
                     contractRepository.save(c1);
 
-                    // Request for Tesla
+                    // Заявка на Tesla
                     Request r1 = new Request();
                     r1.setClient(clientProfile);
                     r1.setVehicle(v3);

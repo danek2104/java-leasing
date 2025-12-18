@@ -1,17 +1,22 @@
 package com.leasing.system.service;
 
-import com.leasing.system.model.Contract;
-import com.leasing.system.model.Payment;
-import com.leasing.system.model.PaymentStatus;
-import com.leasing.system.repository.PaymentRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.List;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.leasing.system.model.Contract;
+import com.leasing.system.model.Payment;
+import com.leasing.system.model.PaymentStatus;
+import com.leasing.system.repository.PaymentRepository;
 
 @Service
 public class PaymentService {
@@ -26,6 +31,30 @@ public class PaymentService {
         return paymentRepository.findByContractId(contractId);
     }
 
+    public Page<Payment> findByContractId(Long contractId, int page, int size, String sortField, String sortDir) {
+        Sort sort = Sort.by(Sort.Direction.fromString(sortDir), sortField);
+        Pageable pageable = PageRequest.of(page, size, sort);
+        return paymentRepository.findByContractId(contractId, pageable);
+    }
+    
+    public Page<Payment> filter(PaymentStatus status, LocalDate startDate, LocalDate endDate, int page, int size, String sortField, String sortDir) {
+        Sort sort = Sort.by(Sort.Direction.fromString(sortDir), sortField);
+        Pageable pageable = PageRequest.of(page, size, sort);
+        return paymentRepository.filter(status, startDate, endDate, pageable);
+    }
+
+    public Page<Payment> findByClientId(Long clientId, int page, int size, String sortField, String sortDir) {
+        Sort sort = Sort.by(Sort.Direction.fromString(sortDir), sortField);
+        Pageable pageable = PageRequest.of(page, size, sort);
+        return paymentRepository.findByContract_Client_Id(clientId, pageable);
+    }
+
+    public Page<Payment> filterByClientId(Long clientId, PaymentStatus status, LocalDate startDate, LocalDate endDate, int page, int size, String sortField, String sortDir) {
+        Sort sort = Sort.by(Sort.Direction.fromString(sortDir), sortField);
+        Pageable pageable = PageRequest.of(page, size, sort);
+        return paymentRepository.filterByClientId(clientId, status, startDate, endDate, pageable);
+    }
+
     public Payment save(Payment payment) {
         return paymentRepository.save(payment);
     }
@@ -33,21 +62,22 @@ public class PaymentService {
     public List<Payment> findAll() {
         return paymentRepository.findAll();
     }
+    
+    public Page<Payment> findAll(int page, int size, String sortField, String sortDir) {
+        Sort sort = Sort.by(Sort.Direction.fromString(sortDir), sortField);
+        Pageable pageable = PageRequest.of(page, size, sort);
+        return paymentRepository.findAll(pageable);
+    }
 
     @Transactional
     public void generateSchedule(Contract contract) {
-        // Clear existing payments if any (e.g. on contract update/re-generation)
-        // For simplicity, we just add new ones or assume it's called on creation.
-        // If contract is updated, handling existing paid payments is complex. 
-        // We will assume this is called only once on ACTIVATION.
-        
+
         LocalDate start = contract.getStartDate();
         LocalDate end = contract.getEndDate();
         
-        // Calculate months duration roughly
         Period period = Period.between(start, end);
         long months = period.toTotalMonths();
-        if (months <= 0) months = 1; // Fallback
+        if (months <= 0) months = 1; 
 
         BigDecimal monthlyAmount = contract.getAmount().divide(BigDecimal.valueOf(months), 2, RoundingMode.HALF_UP);
 

@@ -19,8 +19,39 @@ public class ClientController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    public String listClients(Model model) {
-        model.addAttribute("clients", clientService.findAll());
+    public String listClients(@RequestParam(required = false) String search,
+                              @RequestParam(required = false) String fullName,
+                              @RequestParam(required = false) String passport,
+                              @RequestParam(defaultValue = "0") int page,
+                              @RequestParam(defaultValue = "10") int size,
+                              @RequestParam(defaultValue = "id") String sortField,
+                              @RequestParam(defaultValue = "asc") String sortDir,
+                              Model model) {
+        
+        model.addAttribute("sortField", sortField);
+        model.addAttribute("sortDir", sortDir);
+        model.addAttribute("reverseSortDir", sortDir.equals("asc") ? "desc" : "asc");
+        model.addAttribute("page", page);
+        model.addAttribute("size", size);
+
+        org.springframework.data.domain.Page<Client> clientPage;
+
+        if (fullName != null && !fullName.isEmpty() || passport != null && !passport.isEmpty()) {
+            clientPage = clientService.filter(fullName, passport, page, size, sortField, sortDir);
+            model.addAttribute("fullName", fullName);
+            model.addAttribute("passport", passport);
+        } else if (search != null && !search.isEmpty()) {
+            clientPage = clientService.search(search, page, size, sortField, sortDir);
+            model.addAttribute("search", search);
+        } else {
+            clientPage = clientService.findAll(page, size, sortField, sortDir);
+        }
+        
+        model.addAttribute("clients", clientPage.getContent());
+        model.addAttribute("currentPage", clientPage.getNumber());
+        model.addAttribute("totalPages", clientPage.getTotalPages());
+        model.addAttribute("totalItems", clientPage.getTotalElements());
+
         return "clients/list";
     }
 

@@ -26,7 +26,18 @@ public class Request {
     @Column(nullable = false)
     private RequestStatus status;
 
+    @Column(name = "is_deleted")
+    private boolean deleted = false;
+
     public Request() {
+    }
+
+    public boolean isDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(boolean deleted) {
+        this.deleted = deleted;
     }
 
     public Long getId() {

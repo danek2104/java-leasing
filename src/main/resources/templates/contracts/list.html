@@ -12,15 +12,80 @@
         </a>
     </div>
 
+    <div class="mb-3" sec:authorize="hasAnyRole('ADMIN', 'MANAGER')">
+        <form action="/contracts" method="get">
+            <div class="input-group mb-2">
+                 <input type="search" name="search" class="form-control" placeholder="Быстрый поиск..." th:value="${search}">
+                 <button type="submit" class="btn btn-outline-secondary">Найти</button>
+            </div>
+            <div class="card card-body bg-light">
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <input type="text" name="clientName" class="form-control form-control-sm" placeholder="ФИО Клиента" th:value="${clientName}">
+                    </div>
+                    <div class="col-md-2">
+                         <input type="text" name="brand" class="form-control form-control-sm" placeholder="Марка авто" th:value="${brand}">
+                    </div>
+                    <div class="col-md-2">
+                         <input type="text" name="modelName" class="form-control form-control-sm" placeholder="Модель" th:value="${modelName}">
+                    </div>
+                     <div class="col-md-2">
+                         <input type="date" name="startDate" class="form-control form-control-sm" title="Дата начала" th:value="${startDate}">
+                    </div>
+                     <div class="col-md-3">
+                         <input type="date" name="endDate" class="form-control form-control-sm" title="Дата конца" th:value="${endDate}">
+                    </div>
+                    <div class="col-md-2">
+                         <input type="number" name="minAmount" class="form-control form-control-sm" placeholder="Мин. сумма" th:value="${minAmount}">
+                    </div>
+                    <div class="col-md-2">
+                         <input type="number" name="maxAmount" class="form-control form-control-sm" placeholder="Макс. сумма" th:value="${maxAmount}">
+                    </div>
+                     <div class="col-md-2">
+                        <select name="status" class="form-select form-select-sm">
+                            <option value="">Все статусы</option>
+                            <option th:each="s : ${T(com.leasing.system.model.ContractStatus).values()}"
+                                    th:value="${s}" th:text="${s == T(com.leasing.system.model.ContractStatus).ACTIVE ? 'Активен' : 
+                                            (s == T(com.leasing.system.model.ContractStatus).CLOSED ? 'Закрыт' : 
+                                            (s == T(com.leasing.system.model.ContractStatus).TERMINATED ? 'Расторгнут' : 'Неизвестно'))}"
+                                    th:selected="${status == s}"></option>
+                        </select>
+                    </div>
+                    <div class="col-12 text-end">
+                         <button type="submit" class="btn btn-sm btn-secondary mt-1">Применить фильтр</button>
+                         <a href="/contracts" class="btn btn-sm btn-outline-secondary mt-1">Сбросить</a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
     <div class="card">
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-modern table-hover mb-0 datatable">
                     <thead>
                     <tr>
-                        <th>Клиент</th>
-                        <th>Срок</th>
-                        <th>Сумма</th>
+                        <th>
+                            <a th:href="@{/contracts(page=${page}, sortField='client.fullName', sortDir=${reverseSortDir}, search=${search}, clientName=${clientName}, brand=${brand}, modelName=${modelName}, startDate=${startDate}, endDate=${endDate}, minAmount=${minAmount}, maxAmount=${maxAmount}, status=${status})}" class="text-decoration-none text-dark">
+                                Клиент <i th:if="${sortField == 'client.fullName'}" th:class="${sortDir == 'asc' ? 'bi bi-sort-alpha-down' : 'bi bi-sort-alpha-up'}"></i>
+                            </a>
+                        </th>
+                        <th>
+                            <a th:href="@{/contracts(page=${page}, sortField='vehicle.cost', sortDir=${reverseSortDir}, search=${search}, clientName=${clientName}, brand=${brand}, modelName=${modelName}, startDate=${startDate}, endDate=${endDate}, minAmount=${minAmount}, maxAmount=${maxAmount}, status=${status})}" class="text-decoration-none text-dark">
+                                Транспорт <i th:if="${sortField == 'vehicle.cost'}" th:class="${sortDir == 'asc' ? 'bi bi-sort-numeric-down' : 'bi bi-sort-numeric-up'}"></i>
+                            </a>
+                        </th>
+                        <th>
+                            <a th:href="@{/contracts(page=${page}, sortField='startDate', sortDir=${reverseSortDir}, search=${search}, clientName=${clientName}, brand=${brand}, modelName=${modelName}, startDate=${startDate}, endDate=${endDate}, minAmount=${minAmount}, maxAmount=${maxAmount}, status=${status})}" class="text-decoration-none text-dark">
+                                Срок <i th:if="${sortField == 'startDate'}" th:class="${sortDir == 'asc' ? 'bi bi-sort-numeric-down' : 'bi bi-sort-numeric-up'}"></i>
+                            </a>
+                        </th>
+                        <th>
+                             <a th:href="@{/contracts(page=${page}, sortField='amount', sortDir=${reverseSortDir}, search=${search}, clientName=${clientName}, brand=${brand}, modelName=${modelName}, startDate=${startDate}, endDate=${endDate}, minAmount=${minAmount}, maxAmount=${maxAmount}, status=${status})}" class="text-decoration-none text-dark">
+                                Сумма <i th:if="${sortField == 'amount'}" th:class="${sortDir == 'asc' ? 'bi bi-sort-numeric-down' : 'bi bi-sort-numeric-up'}"></i>
+                            </a>
+                        </th>
                         <th>Статус</th>
                         <th class="text-end">Действия</th>
                     </tr>
@@ -30,6 +95,10 @@
                         <td>
                             <div class="fw-medium" th:text="${contract.client.fullName}">Имя Клиента</div>
                             <div class="small text-muted" th:text="${contract.client.contactInfo}">Контакты</div>
+                        </td>
+                        <td>
+                            <div class="fw-medium" th:text="${contract.vehicle.brand + ' ' + contract.vehicle.model}">Авто</div>
+                            <div class="small text-muted" th:text="${#numbers.formatCurrency(contract.vehicle.cost)}">Стоимость</div>
                         </td>
                         <td>
                             <span th:text="${#temporals.format(contract.startDate, 'dd-MM-yyyy')}">Дата начала</span> <i class="bi bi-arrow-right-short text-muted"></i> <span th:text="${#temporals.format(contract.endDate, 'dd-MM-yyyy')}">Дата окончания</span>
@@ -50,11 +119,31 @@
                             <a sec:authorize="hasAnyRole('ADMIN', 'MANAGER')" th:href="@{/contracts/edit/{id}(id=${contract.id})}" class="btn btn-sm btn-outline-primary" title="Редактировать">
                                 <i class="bi bi-pencil"></i>
                             </a>
+                            <form sec:authorize="hasAnyRole('ADMIN', 'MANAGER')" th:action="@{/contracts/delete/{id}(id=${contract.id})}" method="post" class="d-inline"
+                                  onsubmit="return confirm('Вы уверены, что хотите удалить этот договор?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
                         </td>
                     </tr>
                     </tbody>
                 </table>
             </div>
+            <!-- Pagination -->
+            <nav aria-label="Page navigation" class="mt-4" th:if="${totalPages > 1}">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item" th:classappend="${currentPage == 0} ? 'disabled'">
+                        <a class="page-link" th:href="@{/contracts(page=${currentPage - 1}, sortField=${sortField}, sortDir=${sortDir}, search=${search}, clientName=${clientName}, brand=${brand}, modelName=${modelName}, startDate=${startDate}, endDate=${endDate}, minAmount=${minAmount}, maxAmount=${maxAmount}, status=${status})}" tabindex="-1">Предыдущая</a>
+                    </li>
+                    <li class="page-item" th:each="i : ${#numbers.sequence(0, totalPages - 1)}" th:classappend="${currentPage == i} ? 'active'">
+                        <a class="page-link" th:href="@{/contracts(page=${i}, sortField=${sortField}, sortDir=${sortDir}, search=${search}, clientName=${clientName}, brand=${brand}, modelName=${modelName}, startDate=${startDate}, endDate=${endDate}, minAmount=${minAmount}, maxAmount=${maxAmount}, status=${status})}" th:text="${i + 1}">1</a>
+                    </li>
+                    <li class="page-item" th:classappend="${currentPage == totalPages - 1} ? 'disabled'">
+                        <a class="page-link" th:href="@{/contracts(page=${currentPage + 1}, sortField=${sortField}, sortDir=${sortDir}, search=${search}, clientName=${clientName}, brand=${brand}, modelName=${modelName}, startDate=${startDate}, endDate=${endDate}, minAmount=${minAmount}, maxAmount=${maxAmount}, status=${status})}">Следующая</a>
+                    </li>
+                </ul>
+            </nav>
         </div>
     </div>
 </section>

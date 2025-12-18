@@ -1,11 +1,12 @@
 package com.leasing.system.service;
 
-import com.leasing.system.model.User;
-import com.leasing.system.repository.UserRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+
+import com.leasing.system.model.User;
+import com.leasing.system.repository.UserRepository;
 
 @Service
 public class UserDetailsServiceImpl implements UserDetailsService {
@@ -23,7 +24,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
         return org.springframework.security.core.userdetails.User
                 .withUsername(user.getUsername())
-                .password(user.getPassword()) // Password should be encoded
+                .password(user.getPassword())
                 .roles(user.getRole().name())
                 .build();
     }

@@ -39,7 +39,18 @@ public class Contract {
     @Column(nullable = false)
     private ContractStatus status;
 
+    @Column(name = "is_deleted")
+    private boolean deleted = false;
+
     public Contract() {
+    }
+
+    public boolean isDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(boolean deleted) {
+        this.deleted = deleted;
     }
 
     public Long getId() {

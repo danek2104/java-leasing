@@ -18,8 +18,43 @@ public class VehicleController {
     }
 
     @GetMapping
-    public String listVehicles(Model model) {
-        model.addAttribute("vehicles", vehicleService.findAll());
+    public String listVehicles(@RequestParam(required = false) String search,
+                               @RequestParam(required = false) String brand,
+                               @RequestParam(required = false) String modelName,
+                               @RequestParam(required = false) java.math.BigDecimal minCost,
+                               @RequestParam(required = false) java.math.BigDecimal maxCost,
+                               @RequestParam(defaultValue = "0") int page,
+                               @RequestParam(defaultValue = "10") int size,
+                               @RequestParam(defaultValue = "id") String sortField,
+                               @RequestParam(defaultValue = "asc") String sortDir,
+                               Model model) {
+
+        model.addAttribute("sortField", sortField);
+        model.addAttribute("sortDir", sortDir);
+        model.addAttribute("reverseSortDir", sortDir.equals("asc") ? "desc" : "asc");
+        model.addAttribute("page", page);
+        model.addAttribute("size", size);
+        
+        org.springframework.data.domain.Page<Vehicle> vehiclePage;
+
+        if (search != null && !search.isEmpty()) {
+            vehiclePage = vehicleService.search(search, page, size, sortField, sortDir);
+            model.addAttribute("search", search);
+        } else if (brand != null || modelName != null || minCost != null || maxCost != null) {
+            vehiclePage = vehicleService.filter(brand, modelName, minCost, maxCost, page, size, sortField, sortDir);
+            model.addAttribute("brand", brand);
+            model.addAttribute("modelName", modelName);
+            model.addAttribute("minCost", minCost);
+            model.addAttribute("maxCost", maxCost);
+        } else {
+            vehiclePage = vehicleService.findAll(page, size, sortField, sortDir);
+        }
+        
+        model.addAttribute("vehicles", vehiclePage.getContent());
+        model.addAttribute("currentPage", vehiclePage.getNumber());
+        model.addAttribute("totalPages", vehiclePage.getTotalPages());
+        model.addAttribute("totalItems", vehiclePage.getTotalElements());
+
         return "vehicles/list";
     }
 

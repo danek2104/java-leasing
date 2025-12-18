@@ -1,0 +1,255 @@
+Приложение А – Фрагмент исходного класса, отвечающего за предоставление доступа к веб-инструментам
+
+package com.leasing.system.config;
+
+import com.leasing.system.service.UserDetailsServiceImpl;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity
+public class SecurityConfig {
+
+    private final UserDetailsServiceImpl userDetailsService;
+
+    public SecurityConfig(UserDetailsServiceImpl userDetailsService) {
+        this.userDetailsService = userDetailsService;
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/css/**", "/js/**", "/register", "/login").permitAll()
+                .requestMatchers("/admin/**", "/users/**").hasRole("ADMIN")
+                .requestMatchers("/contracts/new", "/contracts/edit/**", "/contracts/delete/**").hasAnyRole("MANAGER", "ADMIN")
+                .requestMatchers("/requests/new").hasRole("CLIENT")
+                .requestMatchers("/requests/*/status").hasAnyRole("MANAGER", "ADMIN")
+                .requestMatchers("/manager/**").hasAnyRole("MANAGER", "ADMIN")
+                .requestMatchers("/contracts/**", "/requests/**").authenticated() 
+                .requestMatchers("/client/**").hasAnyRole("CLIENT", "MANAGER", "ADMIN")
+                .anyRequest().authenticated()
+            )
+            .formLogin(form -> form
+                .loginPage("/login")
+                .defaultSuccessUrl("/dashboard", true)
+                .permitAll()
+            )
+            .logout(logout -> logout
+                .logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
+                .logoutSuccessUrl("/login?logout")
+                .permitAll()
+            );
+
+        return http.build();
+    }
+
+    @Bean
+    public AuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder());
+        return provider;
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+}
+
+
+Приложение Б – Фрагмент исходного класса, реализующего бизнес-логику работы с договорами
+
+package com.leasing.system.service;
+
+import com.leasing.system.model.Contract;
+import com.leasing.system.repository.ContractRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import java.util.List;
+import java.util.Optional;
+
+@Service
+public class ContractService {
+
+    private final ContractRepository contractRepository;
+
+    public ContractService(ContractRepository contractRepository) {
+        this.contractRepository = contractRepository;
+    }
+
+    public Page<Contract> findAll(int page, int size, String sortField, String sortDir) {
+        Sort sort = Sort.by(Sort.Direction.fromString(sortDir), sortField);
+        Pageable pageable = PageRequest.of(page, size, sort);
+        return contractRepository.findAllByDeletedFalse(pageable);
+    }
+
+    public List<Contract> findAll() {
+        return contractRepository.findAllByDeletedFalse();
+    }
+
+    public Contract save(Contract contract) {
+        return contractRepository.save(contract);
+    }
+
+    public Optional<Contract> findById(Long id) {
+        return contractRepository.findById(id);
+    }
+
+    public void deleteById(Long id) {
+        Contract contract = contractRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Договор не найден"));
+        contract.setDeleted(true);
+        if (contract.getVehicle() != null) {
+             contract.getVehicle().setStatus(com.leasing.system.model.VehicleStatus.AVAILABLE);
+        }
+        contractRepository.save(contract);
+    }
+}
+
+
+Приложение В – Фрагмент исходного класса, обрабатывающего HTTP-запросы для договоров
+
+package com.leasing.system.controller;
+
+import com.leasing.system.service.PaymentService;
+import com.leasing.system.service.VehicleService;
+import com.leasing.system.model.Client;
+import com.leasing.system.model.Contract;
+import com.leasing.system.model.Vehicle;
+import com.leasing.system.model.Role;
+import com.leasing.system.model.User;
+import com.leasing.system.service.ClientService;
+import com.leasing.system.service.ContractService;
+import com.leasing.system.service.UserService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
+
+@Controller
+@RequestMapping("/contracts")
+public class ContractController {
+
+    private final ContractService contractService;
+    private final ClientService clientService;
+    private final UserService userService;
+    private final VehicleService vehicleService;
+    private final PaymentService paymentService;
+
+    public ContractController(ContractService contractService, ClientService clientService, UserService userService, VehicleService vehicleService, PaymentService paymentService) {
+        this.contractService = contractService;
+        this.clientService = clientService;
+        this.userService = userService;
+        this.vehicleService = vehicleService;
+        this.paymentService = paymentService;
+    }
+
+    @GetMapping
+    public String listContracts(@RequestParam(defaultValue = "0") int page,
+                                @RequestParam(defaultValue = "10") int size,
+                                @RequestParam(defaultValue = "id") String sortField,
+                                @RequestParam(defaultValue = "asc") String sortDir,
+                                Model model) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        User user = userService.findByUsername(auth.getName());
+
+        org.springframework.data.domain.Page<Contract> contractPage;
+
+        if (user.getRole() == Role.CLIENT) {
+             var client = clientService.findByUserId(user.getId());
+             contractPage = client != null ? contractService.findByClientId(client.getId(), page, size, sortField, sortDir) : org.springframework.data.domain.Page.empty();
+        } else {
+             contractPage = contractService.findAll(page, size, sortField, sortDir);
+        }
+        
+        model.addAttribute("contracts", contractPage.getContent());
+        model.addAttribute("currentPage", contractPage.getNumber());
+        return "contracts/list";
+    }
+
+    @PostMapping
+    public String saveContract(@jakarta.validation.Valid @ModelAttribute Contract contractForm) {
+        if (contractForm.getId() == null) {
+            // Логика создания нового договора
+             Vehicle v = vehicleService.findById(contractForm.getVehicle().getId()).orElse(null);
+             if (v != null) {
+                 contractForm.setVehicle(v);
+                 if (contractForm.getStatus() == com.leasing.system.model.ContractStatus.ACTIVE) {
+                     v.setStatus(com.leasing.system.model.VehicleStatus.LEASED);
+                     vehicleService.save(v);
+                 }
+             }
+             contractService.save(contractForm);
+        }
+        return "redirect:/contracts";
+    }
+}
+
+
+Приложение Г – Фрагмент исходного класса, описывающего сущность договора
+
+package com.leasing.system.model;
+
+import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+@Entity
+@Table(name = "contracts")
+public class Contract {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne
+    @JoinColumn(name = "client_id", nullable = false)
+    private Client client;
+
+    @ManyToOne
+    @JoinColumn(name = "vehicle_id", nullable = false)
+    private Vehicle vehicle;
+
+    @Column(name = "start_date", nullable = false)
+    private LocalDate startDate;
+
+    @Column(name = "end_date", nullable = false)
+    private LocalDate endDate;
+
+    @Column(nullable = false)
+    private BigDecimal amount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ContractStatus status;
+
+    @Column(name = "is_deleted")
+    private boolean deleted = false;
+
+    public Contract() {}
+    
+    // Геттеры и сеттеры опущены для краткости
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public Client getClient() { return client; }
+    public void setClient(Client client) { this.client = client; }
+    public Vehicle getVehicle() { return vehicle; }
+    public void setVehicle(Vehicle vehicle) { this.vehicle = vehicle; }
+    public ContractStatus getStatus() { return status; }
+    public void setStatus(ContractStatus status) { this.status = status; }
+}

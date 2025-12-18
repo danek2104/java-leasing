@@ -12,15 +12,56 @@
         </a>
     </div>
 
+    <div class="mb-3">
+        <form action="/vehicles" method="get">
+            <div class="input-group mb-2">
+                 <input type="search" name="search" class="form-control" placeholder="Быстрый поиск..." th:value="${search}">
+                 <button type="submit" class="btn btn-outline-secondary">Найти</button>
+            </div>
+            <div class="card card-body bg-light">
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <input type="text" name="brand" class="form-control form-control-sm" placeholder="Марка" th:value="${brand}">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" name="modelName" class="form-control form-control-sm" placeholder="Модель" th:value="${modelName}">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" name="minCost" class="form-control form-control-sm" placeholder="Мин. цена" th:value="${minCost}">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" name="maxCost" class="form-control form-control-sm" placeholder="Макс. цена" th:value="${maxCost}">
+                    </div>
+                    <div class="col-12 text-end">
+                         <button type="submit" class="btn btn-sm btn-secondary mt-1">Применить фильтр</button>
+                         <a href="/vehicles" class="btn btn-sm btn-outline-secondary mt-1">Сбросить</a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
     <div class="card">
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-modern table-hover mb-0 datatable">
                     <thead>
                     <tr>
-                        <th>Марка</th>
-                        <th>Модель</th>
-                        <th>Стоимость (RUB)</th>
+                        <th>
+                            <a th:href="@{/vehicles(page=${page}, sortField='brand', sortDir=${reverseSortDir}, search=${search}, brand=${brand}, modelName=${modelName}, minCost=${minCost}, maxCost=${maxCost})}" class="text-decoration-none text-dark">
+                                Марка <i th:if="${sortField == 'brand'}" th:class="${sortDir == 'asc' ? 'bi bi-sort-alpha-down' : 'bi bi-sort-alpha-up'}"></i>
+                            </a>
+                        </th>
+                        <th>
+                            <a th:href="@{/vehicles(page=${page}, sortField='model', sortDir=${reverseSortDir}, search=${search}, brand=${brand}, modelName=${modelName}, minCost=${minCost}, maxCost=${maxCost})}" class="text-decoration-none text-dark">
+                                Модель <i th:if="${sortField == 'model'}" th:class="${sortDir == 'asc' ? 'bi bi-sort-alpha-down' : 'bi bi-sort-alpha-up'}"></i>
+                            </a>
+                        </th>
+                        <th>
+                            <a th:href="@{/vehicles(page=${page}, sortField='cost', sortDir=${reverseSortDir}, search=${search}, brand=${brand}, modelName=${modelName}, minCost=${minCost}, maxCost=${maxCost})}" class="text-decoration-none text-dark">
+                                Стоимость (RUB) <i th:if="${sortField == 'cost'}" th:class="${sortDir == 'asc' ? 'bi bi-sort-numeric-down' : 'bi bi-sort-numeric-up'}"></i>
+                            </a>
+                        </th>
                         <th>Статус</th>
                         <th sec:authorize="hasAnyRole('ADMIN', 'MANAGER')" class="text-end">Действия</th>
                     </tr>
@@ -51,6 +92,21 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination -->
+            <nav aria-label="Page navigation" class="mt-4" th:if="${totalPages > 1}">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item" th:classappend="${currentPage == 0} ? 'disabled'">
+                        <a class="page-link" th:href="@{/vehicles(page=${currentPage - 1}, sortField=${sortField}, sortDir=${sortDir}, search=${search}, brand=${brand}, modelName=${modelName}, minCost=${minCost}, maxCost=${maxCost})}" tabindex="-1">Предыдущая</a>
+                    </li>
+                    <li class="page-item" th:each="i : ${#numbers.sequence(0, totalPages - 1)}" th:classappend="${currentPage == i} ? 'active'">
+                        <a class="page-link" th:href="@{/vehicles(page=${i}, sortField=${sortField}, sortDir=${sortDir}, search=${search}, brand=${brand}, modelName=${modelName}, minCost=${minCost}, maxCost=${maxCost})}" th:text="${i + 1}">1</a>
+                    </li>
+                    <li class="page-item" th:classappend="${currentPage == totalPages - 1} ? 'disabled'">
+                        <a class="page-link" th:href="@{/vehicles(page=${currentPage + 1}, sortField=${sortField}, sortDir=${sortDir}, search=${search}, brand=${brand}, modelName=${modelName}, minCost=${minCost}, maxCost=${maxCost})}">Следующая</a>
+                    </li>
+                </ul>
+            </nav>
         </div>
     </div>
 </section>

@@ -9,6 +9,7 @@ import com.leasing.system.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.leasing.system.dto.UserEditDto;
 
 import java.util.List;
 
@@ -44,16 +45,37 @@ public class UserService {
         }
     }
 
-    public User save(User user) {
+    public User saveNewUser(User user) {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         return userRepository.save(user);
+    }
+
+    public void updateUser(UserEditDto userEditDto) {
+        User existingUser = userRepository.findById(userEditDto.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid user Id:" + userEditDto.getId()));
+
+        existingUser.setUsername(userEditDto.getUsername());
+        existingUser.setRole(userEditDto.getRole());
+
+        if (userEditDto.getPassword() != null && !userEditDto.getPassword().isEmpty()) {
+            existingUser.setPassword(passwordEncoder.encode(userEditDto.getPassword()));
+        }
+        userRepository.save(existingUser);
     }
 
     public User findByUsername(String username) {
         return userRepository.findByUsername(username).orElse(null);
     }
+
+    public User findById(Long id) {
+        return userRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Invalid user Id:" + id));
+    }
     
     public List<User> findAll() {
         return userRepository.findAll();
+    }
+
+    public void deleteById(Long id) {
+        userRepository.deleteById(id);
     }
 }
